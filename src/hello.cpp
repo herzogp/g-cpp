@@ -19,14 +19,41 @@ class http_request {
     std::string body;
     std::vector<std::string> headers;
   public:
-    // TODO actually parse request
-    http_request(std::string req) {
-      std::cout << "Parsing a string: '" << req << "'" << std::endl;
+    http_request(std::string req): method(""), path(""), protocol(""), body("") {
       std::stringstream ss_req(req);
       std::string line;
 
-      std::getline(ss_req, line);
-      std::stringstream ss_line(line);
+      // Get all headers until receiving an empty line
+      char last_char;
+      size_t lx;
+      bool is_first = true;
+      std::string first_line;
+      while (std::getline(ss_req, line)) {
+        lx = line.length();
+        if (lx == 0) {
+          break;
+        }
+        last_char = line.back();
+        if (last_char == '\r') {
+          line.pop_back();
+          lx--;
+        }
+        if (lx == 0) {
+          break;
+        }
+        if (is_first) {
+          first_line = line;
+          is_first = false;
+        } else {
+          this->headers.push_back(line);
+        }
+      }
+
+      if (first_line.size() == 0) {
+        return;
+      }
+
+      std::stringstream ss_line(first_line);
 
       // First line should be the request url and method
       if (ss_line.good()) {
@@ -41,31 +68,21 @@ class http_request {
       if (ss_line.good()) {
         ss_line >> this->protocol;
       }
-      std::cout << "Method: " this->method << "\n";
-      std::cout << "URL: " this->path << "\n";
-      std::cout << "Protocol: " this->protocol << std::endl;
+
+    };
+
+    void show() {
+      // Show what was parsed
+      std::cout << "Method: " << this->method << "\n";
+      std::cout << "URL: " << this->path << "\n";
+      std::cout << "Protocol: " << this->protocol << std::endl;
+
+      for (std::string hdr : this->headers) {
+        std::cout << "HDR: " << hdr << "\n";
+      }
+      std::cout << std::endl;
     }
 };
-
-// http_response::status_codes = map<int, string> Students;
-// 
-// 	Students.insert(std::pair<int, string>(200, "Alice"));
-// 
-// 	Students.insert(std::pair<int, string>(201, "John"));
-// 
-// 	cout << "Map size is: " << Students.size() << std::endl;
-// 
-// 	cout << std::endl << "Default map Order is: " << std::endl;
-// 
-// 	for (map<int, string>::iterator it = Students.begin(); it != Students.end(); ++it) {
-// 
-// 		cout << (*it).first << ": " << (*it).second << std::endl;
-// 	}
-
-// std::map<int, string>::iterator it = Students.find(201);
-// 	if (it != Students.end()) {
-// 		std::cout << std::endl << "Key 201 has the value: => "<< Students.find(201)->second << '\n';
-// 	}
 
 typedef std::pair<int, std::string> ReasonPair;
 typedef std::map<int, std::string> ReasonMap;
@@ -320,10 +337,10 @@ class http_response {
       std::stringstream buffer;
       std::string status_text = this->p_reasons->lookup(this->status);
       buffer << "HTTP/1.1 " << this->status << " " << status_text << "\r\n";
-      if (content.length()) {
+      // if (content.length()) {
         buffer << "Content-Type: " << this->content_type << "; charset=utf-8" << "\r\n";
         buffer << "Content-Length: " << this->content.length() << "\r\n";
-      }
+      // }
       buffer << "Connection: close\r\n";
       buffer << "\r\n";
       if (content.length()) {
@@ -334,7 +351,7 @@ class http_response {
 
       std::string str_data = buffer.str();
       int bytes_sent = 0;
-      int bytes_remaining = str_data.size();
+      int bytes_remaining = str_data.length();
       while (bytes_remaining > 0) {
         int nbx = send(socket, str_data.c_str() + bytes_sent, bytes_remaining, 0);
         bytes_sent += nbx;
@@ -349,7 +366,8 @@ char http_header[25] = "HTTP/1.1 200 Ok\r\n";
 
 
 int main(int argc, char const *argv[]) {
-    int server_fd, new_socket, pid; 
+    int server_fd, new_socket;
+    int pid = -1; 
     long valread;
     struct sockaddr_in address;
     struct sockaddr *p_address =  (struct sockaddr *)&address;
@@ -385,7 +403,7 @@ int main(int argc, char const *argv[]) {
 
     while(1)
     {
-      std::cout << "\nAccepting connections\n" << std::endl; 
+      std::cout << "\nAccepting connections (pid is " << pid << ")\n" << std::endl; 
       new_socket = accept(server_fd, p_address, (socklen_t *)&len_address);
       if (new_socket < 0) {
         std::perror("In accept");
@@ -399,12 +417,12 @@ int main(int argc, char const *argv[]) {
       }
 
       if (pid == 0) {
+        std::cout << "Newly forked client reading and responding to request" << std::endl;
         char buffer[1000] = {0};
-        valread = read( new_socket, buffer, sizeof(buffer)-1); // leave a trailing 0
+        valread = read(new_socket, buffer, sizeof(buffer)-1); // leave a trailing 0
         const char *cp1 = (const char *)buffer;
-        std::cout << "\nraw_request:\n" << cp1 << std::endl;
         http_request *p_request = new http_request(buffer);
-        std::cout << "\nparse_request() completed" << std::endl;
+        p_request->show();
         if (p_request) {
           if (p_request->method == "GET") {
             if (p_request->path == "/") {
@@ -414,7 +432,7 @@ int main(int argc, char const *argv[]) {
               delete rsp;
               continue;
             }
-            http_response *rsp_fail = new http_response(404, "", "", all_reasons);
+            http_response *rsp_fail = new http_response(404, "text/plain", "", all_reasons);
             rsp_fail->send_message(new_socket);
             std::cout << "\nServer rejected path: '" << p_request->path << "'" << std::endl;
             delete rsp_fail;
@@ -424,17 +442,19 @@ int main(int argc, char const *argv[]) {
             std::cout << "\nServer responded to HTTP POST" << std::endl;
           }
         } // if p_request
+        std::cout << "Client should be done now." << std::endl;
         close(new_socket);
         if (p_request) {
           delete p_request;  
         }
+        close(server_fd);
+        return 0;
       }
-      else{
-        std::cout << "Created child with pid " << pid << std::endl;
+      else {
+        std::cout << "Parent still alive.  Created child with pid: " << pid << std::endl;
         close(new_socket); // because child owns a copy and will be responsible?
       }
     }
     close(server_fd);
     return 0;
 }
-
