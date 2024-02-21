@@ -29,6 +29,8 @@ in
     installPhase = ''
       mkdir -p $out/bin
       cp control $out/bin/control
+      mkdir -p $out/include
+      cp include/* $out/include/
     '';
 
   }

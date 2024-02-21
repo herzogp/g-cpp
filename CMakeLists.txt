@@ -11,6 +11,7 @@ project(glitch-grid-cpp VERSION $ENV{version} LANGUAGES CXX)
 # ----------------------------------------
 add_executable(control
   src/hello.cpp
+  src/http.cpp
 )
 
 target_include_directories(control 
@@ -20,15 +21,14 @@ target_include_directories(control
     "${PROJECT_BINARY_DIR}/include"
 )
 
-# target_sources(control
-#   PUBLIC
-#     FILE_SET control
-#     TYPE HEADERS
-#     BASE_DIRS include
-#     FILES
-#       include/control/version.h
-#       include/control/fuzzer.h
-# )
+target_sources(control
+  PUBLIC
+    FILE_SET control
+    TYPE HEADERS
+    BASE_DIRS include
+    FILES
+      include/http.h
+)
 
 install(TARGETS control)
 
