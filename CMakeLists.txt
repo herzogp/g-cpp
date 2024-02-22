@@ -10,7 +10,7 @@ project(glitch-grid-cpp VERSION $ENV{version} LANGUAGES CXX)
 # glitch-grid services
 # ----------------------------------------
 add_executable(control
-  src/hello.cpp
+  src/control.cpp
   src/http.cpp
 )
 

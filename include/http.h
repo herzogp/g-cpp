@@ -1,5 +1,9 @@
 #pragma once
 
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
 #include <string>
 #include <map>
 #include <vector>
@@ -13,6 +17,21 @@ class HttpStatusReasons {
   public:
     HttpStatusReasons();
     std::string lookup(int status);
+};
+
+class HttpServer {
+    int server_socket;
+    int port;
+    struct sockaddr_in address;
+
+  public:
+    std::string error_text;
+    
+    HttpServer(int port);
+    bool not_useable();
+    bool is_useable();
+    void close();
+    int accept();
 };
 
 class HttpRequest {

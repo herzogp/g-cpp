@@ -1,5 +1,7 @@
 #include "http.h"
 
+#include <cerrno>
+#include <csignal>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -13,94 +15,73 @@
 const int PORT = 8031;
 
 int main(int argc, char const *argv[]) {
-    int server_fd, new_socket, pid;
-    long valread;
-    struct sockaddr_in address;
-    struct sockaddr *p_address =  (struct sockaddr *)&address;
-    int len_address = sizeof(address);
-    
-    // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-      std::perror("Creating a socket");
-      exit(EXIT_FAILURE);
-    }
    
-    memset(&address, '\0', len_address);
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
-  
-    const int opt = 1;
-    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+    signal(SIGCHLD, SIG_IGN);
+    HttpServer server(PORT);
 
-    // bind socket to address:port and listen for connections
-    if (bind(server_fd, p_address, len_address) < 0) {
-      std::perror("Trying to bind()");
-      close(server_fd);
+    if (server.not_useable()) {
+      std::perror(server.error_text.c_str());
       exit(EXIT_FAILURE);
     }
-    if (listen(server_fd, 10) < 0) {
-      perror("Trying to listen()");
-      exit(EXIT_FAILURE);
-    }
-    
+
     HttpStatusReasons *all_reasons = new HttpStatusReasons();
 
-    while(1)
-    {
-      std::cout << "Accepting connections" << std::endl; 
-      new_socket = accept(server_fd, p_address, (socklen_t *)&len_address);
-      if (new_socket < 0) {
-        std::perror("Trying to accept()");
+    while (server.is_useable()) {
+      std::cout << "Accepting connections (" << getpid() << ")" << std::endl; 
+      int child_socket = server.accept();
+      if (child_socket < 0) {
+        std::perror(server.error_text.c_str());
+        std::perror("Failed to accept()");
         exit(EXIT_FAILURE);
       }
+
       //Create child process to handle request from different client
-      pid = fork();
+      pid_t pid = fork();
       if (pid < 0) {
         std::perror("Trying to fork()");
         exit(EXIT_FAILURE);
       }
 
       if (pid == 0) {
-        std::cout << "Newly forked client reading and responding to request" << std::endl;
+        server.close();
+        std::cout << "\n" << ">> Child (" << getpid() << ") reading and responding to request" << std::endl;
         char buffer[1000] = {0};
-        valread = read(new_socket, buffer, sizeof(buffer)-1); // leave a trailing 0
+        ssize_t valread = read(child_socket, buffer, sizeof(buffer)-1); // leave a trailing 0
         const char *cp1 = (const char *)buffer;
-        HttpRequest *p_request = new HttpRequest(buffer);
-        p_request->show();
-        if (p_request) {
-          if (p_request->get_method() == "GET") {
-            if (p_request->get_path() == "/") {
-              HttpResponse *rsp = new HttpResponse(200, "text/plain", "Whatever can be provided!\n", all_reasons);
-              rsp->send_message(new_socket);
-              std::cout << "\nServer responded to HTTP GET" << std::endl;
-              delete rsp;
-              continue;
+        HttpRequest req(buffer);
+        req.show();
+          if (req.get_method() == "GET") {
+            if (req.get_path() == "/") {
+              HttpResponse rsp(200, "text/plain", "Whatever can be provided!\n", all_reasons);
+              rsp.send_message(child_socket);
+            } else if (req.get_path() == "/exit") {
+              HttpResponse rsp(200, "text/plain", "Exiting!\n", all_reasons);
+              rsp.send_message(child_socket);
+              shutdown(child_socket, SHUT_WR);
+              close(child_socket);
+              kill(getppid(), SIGINT);
+              return 0;
+            } else {
+              HttpResponse rsp_fail(404, "text/plain", "", all_reasons);
+              rsp_fail.send_message(child_socket);
+              std::cout << "Path not found: '" << req.get_path() << "'" << std::endl;
             }
-            HttpResponse *rsp_fail = new HttpResponse(404, "text/plain", "", all_reasons);
-            rsp_fail->send_message(new_socket);
-            std::cout << "\nServer rejected path: '" << p_request->get_path() << "'" << std::endl;
-            delete rsp_fail;
-            continue;
           }
-          if (p_request->get_method() == "POST") {
-            std::cout << "\nServer responded to HTTP POST" << std::endl;
+          if ((req.get_method() == "POST") || (req.get_method() != "GET")) {
+              HttpResponse rsp_fail(405, "text/plain", "", all_reasons);
+              rsp_fail.send_message(child_socket);
+              std::cout << "Method not supported: '" << req.get_path() << "'" << std::endl;
           }
-        } // if p_request
-        std::cout << "Client should be done now." << std::endl;
-        close(new_socket);
-        if (p_request) {
-          delete p_request;  
-        }
-        close(server_fd);
+        std::cout << ">> Child (" << getpid() << ") is done\n" << std::endl;
+        shutdown(child_socket, SHUT_RDWR);
+        close(child_socket);
         return 0;
       }
       else {
-        std::cout << "Parent still alive.  Created child with pid: " << pid << std::endl;
-        close(new_socket); // because child owns a copy and will be responsible?
+        close(child_socket); // because child owns a copy and will be responsible?
+        std::cout << "Parent forked child with pid: " << pid << "\n" << std::endl;
       }
     }
-    close(server_fd);
+    server.close();
     return 0;
 }
