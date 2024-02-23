@@ -1,12 +1,19 @@
 #include "http.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <ostream>
 #include <sstream>
 #include <sys/socket.h>
 #include <unistd.h>
+
+RequestHandler::RequestHandler(std::string method, std::string path, RequestHandlerFunc func) : path(path), func(func) {
+    this->method.resize(method.length());
+    std::transform(method.begin(), method.end(), this->method.begin(), ::toupper); 
+  }
 
 HttpServer::HttpServer(int port) : port(port) {
     this->server_socket = socket(AF_INET, SOCK_STREAM |SOCK_CLOEXEC, 0);
@@ -40,8 +47,17 @@ HttpServer::HttpServer(int port) : port(port) {
       this->server_socket = -1;
       return;
     }
-
 }
+
+
+HttpResponse *
+not_found_impl(HttpRequest& req) {
+  std::cout << "Path not found: '" << req.get_path() << "'" << std::endl;
+  return new HttpResponse(404, "text/plain", "");
+} 
+
+RequestHandlerFunc RequestHandler::not_found_func = not_found_impl;
+
 
 bool
 HttpServer::not_useable() {
@@ -54,7 +70,7 @@ HttpServer::is_useable() {
 }
 
 void
-HttpServer::close() {
+HttpServer::close_listening_socket() {
   if (this->not_useable()) {
     return;
   }
@@ -63,6 +79,11 @@ HttpServer::close() {
     this->error_text = "unable to close server socket";
   }
   this->server_socket = -1;
+}
+
+void 
+HttpServer::set_handlers(std::vector<RequestHandler> handlers) {
+  this->handlers = handlers;
 }
 
 int
@@ -76,6 +97,41 @@ HttpServer::accept() {
   int client_socket = ::accept(this->server_socket, p_address, (socklen_t *)&len_address);
   return client_socket;
 }
+
+void
+HttpServer::dispatch_request(int child_socket, HttpRequest& req) {
+    std::string& method = req.get_method();
+    std::string& path = req.get_path();
+
+    for (const auto &handler : this->handlers) { // Type inference by const reference.
+      bool path_matches = (handler.path == path);
+      bool method_matches = (handler.method == method);
+      if (path_matches && method_matches) {
+        std::unique_ptr<HttpResponse> rsp(handler.func(req));
+        rsp->send_message(child_socket);
+        return;
+      }                                                
+    } 
+    std::unique_ptr<HttpResponse> rsp(RequestHandler::not_found_func(req));
+    rsp->send_message(child_socket);
+
+    return;
+}
+
+std::string&
+HttpServer::serve(int child_socket) {
+  std::cout << "\n" << ">> Child (" << getpid() << ") reading and responding to request" << std::endl;
+  char buffer[4000] = {0};
+
+  // TODO handle bigger requests 
+  ssize_t valread = read(child_socket, buffer, sizeof(buffer)-1); // leave a trailing 0
+  HttpRequest req(buffer);
+  req.show();
+
+  this->dispatch_request(child_socket, req);
+  return req.get_path();
+}
+
 
 HttpRequest::HttpRequest(std::string req): 
   method(""), 
@@ -120,7 +176,10 @@ HttpRequest::HttpRequest(std::string req):
   
   // First line should be the request url and method
   if (ss_line.good()) {
-    ss_line >> this->method;
+    std::string maybe_method;
+    ss_line >> maybe_method;
+    this->method.resize(maybe_method.length()); 
+    std::transform(maybe_method.begin(), maybe_method.end(), this->method.begin(), ::toupper); 
   }
   
   if (ss_line.good()) {
@@ -165,6 +224,10 @@ HttpRequest::get_body() {
   return this->body;
 }
 
+HttpStatusReasons::~HttpStatusReasons() {
+  std::cout << "Clearing ReasonsMap" << std::endl;
+  this->reasons.clear();
+}
 
 HttpStatusReasons::HttpStatusReasons() {
   this->reasons.insert(ReasonPair(100, "Continue"));
@@ -242,16 +305,18 @@ HttpStatusReasons::lookup(int status) {
 }
 
 
-HttpResponse::HttpResponse(int status, std::string content_type, std::string content, HttpStatusReasons *p_reasons) :
+HttpResponse::HttpResponse(int status, std::string content_type, std::string content) :
   status(status), 
   content_type(content_type), 
   content(content) {
-  this->p_reasons = p_reasons;
  }
 
 void HttpResponse::send_message(int socket) {
+
+  HttpStatusReasons all_reasons;
+
   std::stringstream buffer;
-  std::string status_text = this->p_reasons->lookup(this->status);
+  std::string status_text = all_reasons.lookup(this->status);
   buffer << "HTTP/1.1 " << this->status << " " << status_text << "\r\n";
   buffer << "Content-Type: " << this->content_type << "; charset=utf-8" << "\r\n";
   buffer << "Content-Length: " << this->content.length() << "\r\n";

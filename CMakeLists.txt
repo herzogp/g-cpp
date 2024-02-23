@@ -11,6 +11,7 @@ project(glitch-grid-cpp VERSION $ENV{version} LANGUAGES CXX)
 # ----------------------------------------
 add_executable(control
   src/control.cpp
+  src/handlers.cpp
   src/http.cpp
 )
 
@@ -28,6 +29,7 @@ target_sources(control
     BASE_DIRS include
     FILES
       include/http.h
+      include/handlers.h
 )
 
 install(TARGETS control)
