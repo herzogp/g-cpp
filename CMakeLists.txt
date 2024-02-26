@@ -11,8 +11,12 @@ project(glitch-grid-cpp VERSION $ENV{version} LANGUAGES CXX)
 # ----------------------------------------
 add_executable(control
   src/control.cpp
+  src/status_reasons.cpp
+  src/http_request.cpp
+  src/http_response.cpp
+  src/request_handler.cpp
+  src/http_server.cpp
   src/handlers.cpp
-  src/http.cpp
 )
 
 target_include_directories(control 
@@ -28,7 +32,11 @@ target_sources(control
     TYPE HEADERS
     BASE_DIRS include
     FILES
-      include/http.h
+      include/http_server.h
+      include/http_request.h
+      include/http_response.h
+      include/status_reasons.h
+      include/request_handler.h
       include/handlers.h
 )
 
