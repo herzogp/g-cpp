@@ -13,7 +13,9 @@ root_func(HttpRequest& req) {
 
 HttpResponse *
 exit_func(HttpRequest& req) {
-  return new HttpResponse(200, "text/plain", "Exiting!\n");
+  HttpResponse *rsp = new HttpResponse(200, "text/plain", "Exiting!\n");
+  rsp->set_should_exit(true);
+  return rsp;
 }
 
 void

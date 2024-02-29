@@ -11,7 +11,8 @@ HttpResponse::HttpResponse(int status, std::string content_type, std::string con
   content(content) {
  }
 
-void HttpResponse::send_message(int socket, HttpStatusReasons& all_reasons) {
+void 
+HttpResponse::send_message(int socket, HttpStatusReasons& all_reasons) {
   std::stringstream buffer;
   std::string status_text = all_reasons.lookup(this->status);
   buffer << "HTTP/1.1 " << this->status << " " << status_text << "\r\n";
@@ -33,4 +34,14 @@ void HttpResponse::send_message(int socket, HttpStatusReasons& all_reasons) {
     bytes_sent += nbx;
     bytes_remaining -= nbx;
   }
+}
+
+void 
+HttpResponse::set_should_exit(bool b) {
+  this->want_exit = b;
+}
+
+bool 
+HttpResponse::should_exit() {
+  return this->want_exit;
 }

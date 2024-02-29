@@ -16,6 +16,7 @@ add_executable(control
   src/http_response.cpp
   src/request_handler.cpp
   src/http_server.cpp
+  src/client_queue.cpp
   src/handlers.cpp
 )
 
@@ -37,6 +38,7 @@ target_sources(control
       include/http_response.h
       include/status_reasons.h
       include/request_handler.h
+      include/client_queue.h
       include/handlers.h
 )
 

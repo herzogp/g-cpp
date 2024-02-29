@@ -33,13 +33,13 @@ HttpServer::HttpServer(int port) :
     // bind socket to address:port and listen for connections
     if (bind(this->server_socket, p_address, len_address) < 0) {
       this->error_text = "Trying to bind()";
-      ::close(this->server_socket);
+      close(this->server_socket);
       this->server_socket = -1;
       return;
     }
-    if (listen(server_socket, 10) < 0) {
+    if (listen(server_socket, 5) < 0) {
       this->error_text = "Trying to listen()";
-      ::close(this->server_socket);
+      close(this->server_socket);
       this->server_socket = -1;
       return;
     }
@@ -61,7 +61,8 @@ HttpServer::close_listening_socket() {
   if (this->not_useable()) {
     return;
   }
-  int rc = ::close(this->server_socket);
+  shutdown(this->server_socket, SHUT_RDWR);
+  int rc = close(this->server_socket);
   if (rc == -1) {
     this->error_text = "unable to close server socket";
   }
@@ -85,29 +86,33 @@ HttpServer::accept() {
   return client_socket;
 }
 
-void
+bool
 HttpServer::dispatch_request(int child_socket, HttpRequest& req) {
     std::string& method = req.get_method();
     std::string& path = req.get_path();
 
-    for (const auto &handler : this->handlers) { // Type inference by const reference.
+    for (const auto &handler : this->handlers) {
       bool path_matches = (handler.path == path);
       bool method_matches = (handler.method == method);
       if (path_matches && method_matches) {
         std::unique_ptr<HttpResponse> rsp(handler.func(req));
         rsp->send_message(child_socket, this->all_reasons);
-        return;
+        return rsp->should_exit();
       }                                                
     } 
     std::unique_ptr<HttpResponse> rsp(RequestHandler::not_found_func(req));
     rsp->send_message(child_socket, this->all_reasons);
 
-    return;
+    return false;
 }
 
-std::string&
+bool
 HttpServer::serve(int child_socket) {
-  std::cout << "\n" << ">> Child (" << getpid() << ") reading and responding to request" << std::endl;
+  std::cout << "\n" 
+    << ">> Child (socket: " << child_socket 
+    << ", pid: " << getpid() 
+    << ") request:" 
+    << std::endl;
   char buffer[4000] = {0};
 
   // TODO handle bigger requests 
@@ -115,6 +120,5 @@ HttpServer::serve(int child_socket) {
   HttpRequest req(buffer);
   req.show();
 
-  this->dispatch_request(child_socket, req);
-  return req.get_path();
+  return this->dispatch_request(child_socket, req);
 }

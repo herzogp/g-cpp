@@ -28,8 +28,8 @@ class HttpServer {
     void close_listening_socket();
     int accept();
     void set_handlers(std::vector<RequestHandler> handlers);
-    std::string& serve(int child_socket);
+    bool serve(int child_socket);
 
   private:
-    void dispatch_request(int child_socket, HttpRequest& req);
+    bool dispatch_request(int child_socket, HttpRequest& req);
 };
