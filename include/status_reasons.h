@@ -16,5 +16,3 @@ class HttpStatusReasons {
     std::string lookup(int status);
     static HttpStatusReasons& get_reasons();
 };
-
-

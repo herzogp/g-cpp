@@ -10,5 +10,3 @@ struct ClientQueue {
   void add_client(int child_socket);
   bool is_stopped();
 };
-
-

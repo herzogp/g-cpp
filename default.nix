@@ -4,7 +4,7 @@ in
   with pkgs;
   stdenv.mkDerivation {
     pname = "glitch-grid-cpp";
-    version = "0.0.3";
+    version = "0.0.4";
 
     src = ./.;
 

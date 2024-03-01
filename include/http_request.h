@@ -19,4 +19,3 @@ class HttpRequest {
     std::string& get_body();
     std::vector<std::string>& get_headers();
 };
-
