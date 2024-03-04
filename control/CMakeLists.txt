@@ -6,7 +6,6 @@ project(glitch-grid-cpp VERSION $ENV{version} LANGUAGES CXX)
 # ----------------------------------------
 add_executable(control
   src/control.cpp
-  src/status_reasons.cpp
   src/http_request.cpp
   src/http_response.cpp
   src/request_handler.cpp
@@ -31,7 +30,6 @@ target_sources(control
       include/http_server.h
       include/http_request.h
       include/http_response.h
-      include/status_reasons.h
       include/request_handler.h
       include/client_queue.h
       include/handlers.h

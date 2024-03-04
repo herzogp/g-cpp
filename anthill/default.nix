@@ -3,8 +3,8 @@ let
 in
   with pkgs;
   stdenv.mkDerivation {
-    pname = "glitch-grid-cpp";
-    version = "0.0.4";
+    pname = "anthill";
+    version = "0.0.1";
 
     src = ./.;
 
@@ -13,25 +13,24 @@ in
     ];
 
     configurePhase = ''
-      cmake .
+      cmake -DBUILD_SHARED_LIBS=NO .
     '';
 
     # patchPhase = '' '';
 
     buildPhase = ''
       #env
-      make control
+      make anthill
       #ls -lR 
     '';
 
     # checkPhase = '' '';
 
     installPhase = ''
-      mkdir -p $out/bin
-      cp control $out/bin/control
+      mkdir -p $out/lib
+      cp libanthill.a $out/lib/libanthill.a
       mkdir -p $out/include
-      cp include/* $out/include/
+      cp -pra include/* $out/include/
     '';
 
   }
-
