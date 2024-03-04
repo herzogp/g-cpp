@@ -1,5 +1,5 @@
 #pragma once
-#include "request_handler.h"
+#include <anthill/request_handler.h>
 
 // Endpoint handlers
 HttpResponse * barky_func(HttpRequest& req);
