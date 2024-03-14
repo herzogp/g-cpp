@@ -113,11 +113,8 @@ HttpServer::serve(int child_socket) {
     << ", pid: " << getpid() 
     << ") request:" 
     << std::endl;
-  char buffer[4000] = {0};
 
-  // TODO handle bigger requests 
-  ssize_t valread = read(child_socket, buffer, sizeof(buffer)-1); // leave a trailing 0
-  HttpRequest req(buffer);
+  HttpRequest req(child_socket);
   req.show();
 
   return this->dispatch_request(child_socket, req);

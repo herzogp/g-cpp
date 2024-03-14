@@ -1,24 +1,38 @@
+#include <anthill/netbuf.h>
 #include "http_request.h"
 
 #include <algorithm>
 #include <iostream>
-#include <sstream>
+#include <unistd.h>
 
-HttpRequest::HttpRequest(std::string req): 
+
+HttpRequest::HttpRequest(int socket):
+  client_socket(socket),
   method(""), 
   path(""),
   protocol(""), 
-  body("") {
+  body("")
+{
+  std::unique_ptr<Netbuf> p_netbuf(new Netbuf(socket));
+  p_strm = std::unique_ptr<std::basic_iostream<char>>(new std::basic_iostream(p_netbuf.get()));
+  read_headers();
+}
 
-  std::stringstream ss_req(req);
-  std::string line;
+void
+HttpRequest::read_headers() {
+
+  char buffer[4000] = {0};
   
   // Get all headers until receiving an empty line
   char last_char;
   size_t lx;
   bool is_first = true;
   std::string first_line;
-  while (std::getline(ss_req, line)) {
+  std::basic_iostream<char> *this_strm = this->p_strm.get();
+
+  this_strm->getline(buffer, sizeof(buffer), '\n');
+  while (this_strm->good()) {
+    std::string line(buffer);
     lx = line.length();
     if (lx == 0) {
       break;
@@ -37,6 +51,7 @@ HttpRequest::HttpRequest(std::string req):
     } else {
       this->headers.push_back(line);
     }
+    this_strm->getline(buffer, sizeof(buffer), '\n');
   }
   
   if (first_line.size() == 0) {
