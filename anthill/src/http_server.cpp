@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstring> //required_by: memset
+#include <fcntl.h>
 #include <iostream>
 #include <memory>
 #include <ostream>
@@ -12,7 +13,7 @@ HttpServer::HttpServer(int port) :
   port(port), 
   all_reasons(HttpStatusReasons::get_reasons()) {
 
-    this->server_socket = socket(AF_INET, SOCK_STREAM |SOCK_CLOEXEC, 0);
+    this->server_socket = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (this->server_socket == (-1)) {
       this->error_text = "Creating a socket";
       return;
@@ -28,7 +29,6 @@ HttpServer::HttpServer(int port) :
   
     const int opt = 1;
     setsockopt(this->server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    setsockopt(this->server_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
 
     // bind socket to address:port and listen for connections
     if (bind(this->server_socket, p_address, len_address) < 0) {
@@ -83,6 +83,12 @@ HttpServer::accept() {
   struct sockaddr *p_address =  (struct sockaddr *)&this->address;
   int len_address = sizeof(this->address);
   int client_socket = ::accept(this->server_socket, p_address, (socklen_t *)&len_address);
+
+  if (client_socket > 0) {
+    int flags = fcntl(client_socket ,F_GETFL, 0);
+    fcntl(client_socket, F_SETFL, (flags | O_NONBLOCK));
+  }
+
   return client_socket;
 }
 
@@ -108,11 +114,10 @@ HttpServer::dispatch_request(int child_socket, HttpRequest& req) {
 
 bool
 HttpServer::serve(int child_socket) {
-  std::cout << "\n" 
-    << ">> Child (socket: " << child_socket 
-    << ", pid: " << getpid() 
-    << ") request:" 
-    << std::endl;
+  const char *divider = "--------------------------------------\n";
+  std::cout << "\n" << divider 
+    << "Request (socket: " << child_socket 
+    << ")\n" << divider; 
 
   HttpRequest req(child_socket);
   req.show();

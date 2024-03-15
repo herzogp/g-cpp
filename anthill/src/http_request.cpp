@@ -13,17 +13,16 @@ HttpRequest::HttpRequest(int socket):
   protocol(""), 
   body("")
 {
-  std::unique_ptr<Netbuf> p_netbuf(new Netbuf(socket));
+  p_netbuf = std::unique_ptr<Netbuf>(new Netbuf(socket));
   p_strm = std::unique_ptr<std::basic_iostream<char>>(new std::basic_iostream(p_netbuf.get()));
   read_headers();
 }
 
 void
 HttpRequest::read_headers() {
-
-  char buffer[4000] = {0};
   
   // Get all headers until receiving an empty line
+  char buffer[3000] = {0};
   char last_char;
   size_t lx;
   bool is_first = true;
@@ -31,7 +30,7 @@ HttpRequest::read_headers() {
   std::basic_iostream<char> *this_strm = this->p_strm.get();
 
   this_strm->getline(buffer, sizeof(buffer), '\n');
-  while (this_strm->good()) {
+  while (!this_strm->fail()) {
     std::string line(buffer);
     lx = line.length();
     if (lx == 0) {
@@ -51,6 +50,12 @@ HttpRequest::read_headers() {
     } else {
       this->headers.push_back(line);
     }
+
+    // If the stream is not healthy, stop reading from it
+    if (!this_strm->good()) {
+      break;
+    }
+
     this_strm->getline(buffer, sizeof(buffer), '\n');
   }
   
@@ -79,15 +84,55 @@ HttpRequest::read_headers() {
   
 }
 
-void HttpRequest::show() {
+void 
+HttpRequest::read_formdata(std::map<std::string, std::string> & form_data) {
+  char buffer[3000];
+  char last_char;
+  size_t lx;
+  std::basic_iostream<char> *this_strm = this->p_strm.get();
+ 
+  form_data.clear();
+
+  this_strm->getline(buffer, sizeof(buffer), '&');
+  while (!this_strm->fail()) {
+    std::string line(buffer);
+    lx = line.length();
+    if (lx == 0) {
+      break;
+    }
+
+    // line looks like name=value
+    // parse into (name, value) and store in map<string, string>
+    std::string::size_type idx = line.find_first_of("=", 0);
+    if (idx != std::string::npos) {
+      std::string data_name = line.substr(0, idx);
+      std::string data_value = line.substr(idx + 1);
+      form_data[data_name] = data_value;
+    }
+  
+    // If the stream is not healthy, stop reading from it
+    if (!this_strm->good()) {
+      break;
+    }
+
+    // This might trigger an eof() condition, while
+    // returning valid data.  So process the data (if any)
+    // by staying in the while loop.
+    this_strm->getline(buffer, sizeof(buffer), '&');
+  }
+ 
+}
+
+void 
+HttpRequest::show() {
   std::cout << "Method: " << this->method << "\n";
   std::cout << "URL: " << this->path << "\n";
   std::cout << "Protocol: " << this->protocol << std::endl;
   
   for (std::string hdr : this->headers) {
-    std::cout << "HDR: " << hdr << "\n";
+    std::cout << hdr << "\n";
   }
-  std::cout << std::endl;
+  std::cout.flush();
 }
 
 std::string&

@@ -24,6 +24,8 @@ HttpResponse::send_message(int socket, HttpStatusReasons& all_reasons) {
     buffer << content;
   }
 
+  const char *divider = "--------------------------------------\n";
+  std::cout << "\n" << divider << "Response (socket:" << socket << ")\n" << divider; 
   std::cout << buffer.str() << std::endl;
 
   std::string str_data = buffer.str();

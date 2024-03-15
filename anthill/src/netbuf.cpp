@@ -1,10 +1,9 @@
 #include <sys/socket.h>
 #include <cstdio>
+#include <iostream>
 #include "netbuf.h"
 
 Netbuf::Netbuf(int socket) : socket(socket), input_area{0}, output_area{0} {
-  // input_area = {0};
-  // output_area = {0};
   char *input_end = input_area + input_area_size;
   setg(input_end, input_end, input_end);
 
@@ -32,7 +31,6 @@ Netbuf::underflow() {
  
 std::streamsize 
 Netbuf::showmanyc() {
-  //return static_cast<std::streamsize>(egptr() - gptr());
   return egptr() - gptr();
 }
 
