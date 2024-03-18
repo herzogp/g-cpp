@@ -65,7 +65,7 @@ HttpServer::start_services() {
       int child_socket = this->accept();
       if (child_socket < 0) {
         service_threads.clear();
-        // wait a few secs
+        // give the service threads a chance to close
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         {
           std::lock_guard<std::mutex> lk(this->client_que.mtx);
