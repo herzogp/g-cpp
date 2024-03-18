@@ -1,5 +1,6 @@
 #include "http_server.h"
 
+#include <chrono>
 #include <cstdio>
 #include <cstring> //required_by: memset
 #include <fcntl.h>
@@ -9,8 +10,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-HttpServer::HttpServer(int port) : 
+HttpServer::HttpServer(int port, int num_threads) : 
   port(port), 
+  num_threads(num_threads > 1 ? num_threads : 1),
   app_context(NULL),
   all_reasons(HttpStatusReasons::get_reasons()) {
 
@@ -44,8 +46,88 @@ HttpServer::HttpServer(int port) :
       this->server_socket = -1;
       return;
     }
+
+    service_threads.reserve(num_threads);
 }
 
+// Http Server stays in this loop until the 
+// the servers listening socket is closed
+// which will cause this->accept() to return (-1)
+void 
+HttpServer::start_services() {
+
+    for (int i=0; i<num_threads; i++) {
+      service_threads[i] = std::thread([this] { service(); });
+      service_threads[i].detach();
+    }
+
+    while (this->is_useable()) {
+      int child_socket = this->accept();
+      if (child_socket < 0) {
+        service_threads.clear();
+        // wait a few secs
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        {
+          std::lock_guard<std::mutex> lk(this->client_que.mtx);
+          std::cout << "Terminating server  thread: " << std::this_thread::get_id() <<  " (main)" << std::endl;
+        }
+        return;
+      }
+      this->client_que.add_client(child_socket);
+    }
+}
+
+void
+HttpServer::service() {
+  {
+    std::lock_guard<std::mutex> lx(this->client_que.mtx);
+    std::cout << "Starting service thread: " << std::this_thread::get_id() << std::endl;
+  }
+  int child_socket;
+  while (1) {
+    {
+      child_socket = 0;
+
+      // Gain a lock on the client queue mutex and wait to be notified
+      std::unique_lock<std::mutex> lck(this->client_que.mtx);
+      this->client_que.c_var.wait(lck);
+
+      if (this->client_que.is_stopped()) {
+        std::cout << "Terminating service thread: " << std::this_thread::get_id() << std::endl;
+        return;
+      }
+      // we were notified that there is something in the cq_ref.que
+      // pop this off of the cq_ref.que while we own the mutex
+      child_socket = this->client_que.que.front();
+      this->client_que.que.pop();
+    }
+
+    // Service the child socket
+    bool should_exit = this->serve(child_socket);
+
+    ::shutdown(child_socket, SHUT_WR);
+    close(child_socket);
+
+    // handle possible exit indication
+    if (should_exit) {
+      this->shutdown();
+      std::cout << "Terminating service thread: " << std::this_thread::get_id() << std::endl;
+      return;
+    }
+  } // while
+
+  this->close_listening_socket();
+  return;
+}
+
+void 
+HttpServer::shutdown() {
+  std::lock_guard<std::mutex> lx(this->client_que.mtx);
+  this->close_listening_socket();
+  this->client_que.stopped = true;
+  this->client_que.c_var.notify_all();
+  return;
+}
 
 bool
 HttpServer::not_useable() {
@@ -62,7 +144,7 @@ HttpServer::close_listening_socket() {
   if (this->not_useable()) {
     return;
   }
-  shutdown(this->server_socket, SHUT_RDWR);
+  ::shutdown(this->server_socket, SHUT_RDWR);
   int rc = close(this->server_socket);
   if (rc == -1) {
     this->error_text = "unable to close server socket";
