@@ -18,6 +18,7 @@ class HttpServer {
     struct sockaddr_in address;
     std::vector<RequestHandler> handlers;
     HttpStatusReasons& all_reasons;
+    void * app_context;
 
   public:
     std::string error_text;
@@ -29,6 +30,8 @@ class HttpServer {
     int accept();
     void set_handlers(std::vector<RequestHandler> handlers);
     bool serve(int child_socket);
+    void *get_app_context();
+    void set_app_context(void *context);
 
   private:
     bool dispatch_request(int child_socket, HttpRequest& req);

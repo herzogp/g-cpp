@@ -4,7 +4,7 @@ let
 in
   with pkgs;
   stdenv.mkDerivation {
-    pname = "glitch-grid-cpp-control";
+    pname = "glitch-grid-cpp-vault";
     version = "0.0.5";
 
     src = ./.;
@@ -22,7 +22,7 @@ in
 
     buildPhase = ''
       #env
-      make control
+      make vault
       #ls -lR 
     '';
 
@@ -30,8 +30,9 @@ in
 
     installPhase = ''
       mkdir -p $out/bin
-      cp control $out/bin/control
+      cp vault $out/bin/vault
     '';
 
   }
+
 

@@ -18,6 +18,7 @@ class HttpRequest {
     std::string& get_protocol();
     std::string& get_body();
     std::vector<std::string>& get_headers();
+    void read_body(char *buffer, size_t nbx);
     void read_formdata(std::map<std::string, std::string> & formdata_map);
 
   public:

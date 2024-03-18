@@ -1,18 +1,21 @@
 #include <anthill/http_server.h>
 #include <anthill/client_queue.h>
+#include "vault.h"
 #include "handlers.h"
 
 #include <algorithm>
 #include <csignal>
 #include <iostream>
+#include <string>
 #include <thread>
 
-const int PORT = 8031;
-const int NUM_THREADS = 3;
+const int default_port = 8001;
+enum ExpectingArgument { no_arg, port_arg };
 
+
+const int NUM_THREADS = 3;
 ClientQueue client_que;
 ClientQueue& cq_ref = client_que;
-
 std::vector<std::thread> service_threads(NUM_THREADS);
 
 void server_shutdown(HttpServer *server, int child_socket) {
@@ -65,19 +68,60 @@ void service(HttpServer *server) {
   return;
 }
 
+// ---------------------------------------------------------------------
+// portPtr := flag.Int("port", 8001, "Port on which to listen for requests")
+// flag.Parse()
+// s := NewVaultServer(*portPtr)
+// err := http.ListenAndServe(fmt.Sprintf(":%d", s.port), s.mux)
+// if errors.Is(err, http.ErrServerClosed) {
+//   glog.Info("server closed")
+// } else if err != nil {
+//   glog.Errorf("error starting server: %s", err)
+//   os.Exit(1)
+// }
+// ---------------------------------------------------------------------
+
+// vault -port 9999
+//
+// default is 8001
+
+Vault::Vault(int id): value(0), id(id) {}
+
+
 int main(int argc, char const *argv[]) {
-  
+
+    int port = default_port;
+    ExpectingArgument expecting = no_arg;
+    if (argc > 1) {
+      for (int idx = 1; idx < argc; idx++) {
+        std::string arg(argv[idx]);
+        if (expecting == port_arg) {
+          int maybe_port = to_int(arg);
+          if (maybe_port > 1024) {
+            port = maybe_port;
+          }
+          expecting = no_arg;
+        }
+        if (arg.compare("-port") == 0) {
+          expecting = port_arg;
+        }
+      }
+    }
+
     std::cout << "Starting thread: " << std::this_thread::get_id() <<  " (main)" << std::endl;
-    HttpServer server(PORT);
+    HttpServer server(port);
+    Vault my_vault(port);
+    my_vault.value = 29;
 
     if (server.not_useable()) {
       std::perror(server.error_text.c_str());
       exit(EXIT_FAILURE);
     }
 
-    std::vector<RequestHandler> control_handlers;
-    setup_control_handlers(control_handlers);
-    server.set_handlers(control_handlers);
+    std::vector<RequestHandler> vault_handlers;
+    setup_vault_handlers(vault_handlers);
+    server.set_handlers(vault_handlers);
+    server.set_app_context(&my_vault);
 
     for (int i=0; i<NUM_THREADS; i++) {
       service_threads[i] = std::thread(service, &server);
@@ -100,3 +144,4 @@ int main(int argc, char const *argv[]) {
     server.close_listening_socket();
     return 0;
 }
+

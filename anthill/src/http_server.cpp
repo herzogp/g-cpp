@@ -11,6 +11,7 @@
 
 HttpServer::HttpServer(int port) : 
   port(port), 
+  app_context(NULL),
   all_reasons(HttpStatusReasons::get_reasons()) {
 
     this->server_socket = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -74,6 +75,16 @@ HttpServer::set_handlers(std::vector<RequestHandler> handlers) {
   this->handlers = handlers;
 }
 
+void *
+HttpServer::get_app_context() {
+  return this->app_context;
+}
+
+void
+HttpServer::set_app_context(void *context) {
+  this->app_context = context;
+}
+
 int
 HttpServer::accept() {
   if (this->not_useable()) {
@@ -101,12 +112,12 @@ HttpServer::dispatch_request(int child_socket, HttpRequest& req) {
       bool path_matches = (handler.path == path);
       bool method_matches = (handler.method == method);
       if (path_matches && method_matches) {
-        std::unique_ptr<HttpResponse> rsp(handler.func(req));
+        std::unique_ptr<HttpResponse> rsp(handler.func(req, this->app_context));
         rsp->send_message(child_socket, this->all_reasons);
         return rsp->should_exit();
       }                                                
     } 
-    std::unique_ptr<HttpResponse> rsp(RequestHandler::not_found_func(req));
+    std::unique_ptr<HttpResponse> rsp(RequestHandler::not_found_func(req, this->app_context));
     rsp->send_message(child_socket, this->all_reasons);
 
     return false;

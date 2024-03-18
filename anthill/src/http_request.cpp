@@ -84,6 +84,14 @@ HttpRequest::read_headers() {
   
 }
 
+void
+HttpRequest::read_body(char *buffer, size_t nbx) {
+  std::basic_iostream<char> *this_strm = this->p_strm.get();
+
+  this_strm->getline(buffer, nbx, '\0');
+  return ;
+}
+
 void 
 HttpRequest::read_formdata(std::map<std::string, std::string> & form_data) {
   char buffer[3000];

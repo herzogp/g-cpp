@@ -1,22 +1,19 @@
 #include "handlers.h"
 #include <map>
 
-// local functions
-int to_int(std::string& s, int def_val=0);
-
 // Endpoint handlers
 HttpResponse *
-barky_func(HttpRequest& req) {
+barky_func(HttpRequest& req, void *context) {
   return new HttpResponse(200, "text/plain", "Woof, woof\n");
 }
 
 HttpResponse *
-root_func(HttpRequest& req) {
+root_func(HttpRequest& req, void *context) {
   return new HttpResponse(200, "text/plain", "Whatever can be provided!\n");
 }
 
 HttpResponse *
-add_func(HttpRequest& req) {
+add_func(HttpRequest& req, void *context) {
 
   std::map<std::string, std::string> form_data;
   req.read_formdata(form_data);
@@ -31,7 +28,7 @@ add_func(HttpRequest& req) {
 }
 
 HttpResponse *
-exit_func(HttpRequest& req) {
+exit_func(HttpRequest& req, void *context) {
   HttpResponse *rsp = new HttpResponse(200, "text/plain", "Exiting!\n");
   rsp->set_should_exit(true);
   return rsp;
@@ -49,21 +46,4 @@ setup_control_handlers(std::vector<RequestHandler>& handlers) {
     handlers.push_back(h3);
     handlers.push_back(h4);
     return;
-}
-
-int 
-to_int(std::string& s, int def_val) {
-  int result = 0;
-
-  try {
-    result = std::stoi(s);
-  }
-  catch (std::invalid_argument const& ex) {
-    result = def_val;
-  }
-  catch (std::out_of_range const& ex) {
-    result = def_val;
-  }
-
-  return result;
 }

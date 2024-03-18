@@ -11,6 +11,7 @@ add_library(anthill
   src/request_handler.cpp
   src/status_reasons.cpp
   src/netbuf.cpp
+  src/client_queue.cpp
 )
 
 target_include_directories(anthill PUBLIC include/anthill)
@@ -27,6 +28,7 @@ target_sources(anthill
       include/anthill/request_handler.h
       include/anthill/status_reasons.h
       include/anthill/netbuf.h
+      include/anthill/client_queue.h
 )
 
 install(TARGETS anthill FILE_SET anthill)

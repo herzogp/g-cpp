@@ -4,7 +4,7 @@
 #include "http_response.h"
 #include <string>
 
-typedef HttpResponse * (*RequestHandlerFunc)(HttpRequest& req);
+typedef HttpResponse * (*RequestHandlerFunc)(HttpRequest& req, void *context);
 
 struct RequestHandler {
     std::string method;
@@ -14,3 +14,6 @@ struct RequestHandler {
 
     RequestHandler(std::string method, std::string path, RequestHandlerFunc func);
 };
+
+int to_int(std::string& s, int def_val=0);
+
