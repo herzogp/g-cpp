@@ -7,4 +7,6 @@ HttpResponse * root_func(HttpRequest& req, void *context);
 HttpResponse * add_func(HttpRequest& req, void *context);
 HttpResponse * exit_func(HttpRequest& req, void *context);
 
+HttpResponse * get_counter(HttpRequest& req, void *context);
+
 void setup_control_handlers(std::vector<RequestHandler>& handlers);

@@ -1,3 +1,4 @@
+#include <anthill/helpers.h>
 #include "vault.h"
 #include "handlers.h"
 

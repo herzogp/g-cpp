@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 project(vault-cpp VERSION $ENV{version} LANGUAGES CXX)
 
+set(CMAKE_CXX_FLAGS "-std=c++20 -fsanitize-coverage=trace-pc-guard")
+
 # ----------------------------------------
 # glitch-grid vault service
 # ----------------------------------------

@@ -14,6 +14,3 @@ struct RequestHandler {
 
     RequestHandler(std::string method, std::string path, RequestHandlerFunc func);
 };
-
-int to_int(std::string& s, int def_val=0);
-

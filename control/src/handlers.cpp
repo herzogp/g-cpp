@@ -1,4 +1,8 @@
+#include <anthill/helpers.h>
+#include <anthill/http_status.h>
+#include <antithesis_sdk.h>
 #include "handlers.h"
+#include "control_server.h"
 #include <map>
 
 // Endpoint handlers
@@ -32,6 +36,39 @@ exit_func(HttpRequest& req, void *context) {
   HttpResponse *rsp = new HttpResponse(200, "text/plain", "Exiting!\n");
   rsp->set_should_exit(true);
   return rsp;
+}
+
+// Get the current value of the counter.
+// Poll all our backend servers and see if we have majority consensus.
+// Sends a 200 and the value to the client if we have a consensus, 500 otherwise.
+HttpResponse *
+get_counter(HttpRequest& req, void *context) {
+  ControlServer *ctl_server = static_cast<ControlServer *>(context);
+	ALWAYS(true, "Control service: received a request to retrieve the counter's value", {});
+	int result = ctl_server->get_value_from_vaults();
+	int status_code = 0;
+  std::string body;
+  std::ostringstream ss_text;
+	if (result >= 0) {
+		ALWAYS_OR_UNREACHABLE(true, "Counter's value retrieved", {{"counter", body}, {"status", status_code}});
+		status_code = HttpStatus::StatusOK;
+
+		// TODO body = fmt.Sprintf("%d", result)
+    ss_text << result;
+    body = ss_text.str();
+
+	} else {
+		UNREACHABLE("Counter should never be unavailable", {{"result", result}});
+		status_code = HttpStatus::StatusInternalServerError;
+    ss_text << -1;
+    body = ss_text.str();
+	}
+
+	int expected_status = (status_code == HttpStatus::StatusOK) || (status_code == HttpStatus::StatusInternalServerError);
+	ALWAYS_OR_UNREACHABLE(expected_status, "HTTP return status is expected", {{"status", status_code}});
+	ALWAYS(status_code != HttpStatus::StatusInternalServerError, "The server never return a 500 HTTP response code", {{"status", status_code}});
+	
+  return new HttpResponse(status_code, "text/plain", body.c_str());
 }
 
 void

@@ -8,7 +8,7 @@
 #include <thread>
 #include <vector>
 
-#include <anthill/status_reasons.h>
+#include <anthill/http_status.h>
 #include "http_request.h"
 #include "http_response.h"
 #include "request_handler.h"
@@ -20,12 +20,11 @@ class HttpServer {
     int num_threads;
     struct sockaddr_in address;
     std::vector<RequestHandler> handlers;
-    HttpStatusReasons& all_reasons;
+    HttpStatus& all_reasons;
     void * app_context;
 
     ClientQueue client_que;
-    std::vector<std::thread> service_threads; // (NUM_THREADS);
-    // ClientQueue& cq_ref = client_que;
+    std::vector<std::thread> service_threads;
 
   public:
     std::string error_text;

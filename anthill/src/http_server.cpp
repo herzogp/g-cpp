@@ -14,7 +14,7 @@ HttpServer::HttpServer(int port, int num_threads) :
   port(port), 
   num_threads(num_threads > 1 ? num_threads : 1),
   app_context(NULL),
-  all_reasons(HttpStatusReasons::get_reasons()) {
+  all_reasons(HttpStatus::get_reasons()) {
 
     this->server_socket = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (this->server_socket == (-1)) {

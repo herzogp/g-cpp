@@ -1,6 +1,6 @@
-#include "status_reasons.h"
+#include "http_status.h"
 
-HttpStatusReasons::HttpStatusReasons() {
+HttpStatus::HttpStatus() {
   this->reasons.insert(ReasonPair(100, "Continue"));
   this->reasons.insert(ReasonPair(101, "Switching Protocols"));
   this->reasons.insert(ReasonPair(102, "Processing (WebDAV)"));
@@ -67,7 +67,7 @@ HttpStatusReasons::HttpStatusReasons() {
 }
 
 std::string
-HttpStatusReasons::lookup(int status) {
+HttpStatus::lookup(int status) {
   ReasonIterator it = this->reasons.find(status);
   if (it == reasons.end()) {
     return "Unknown";
@@ -75,12 +75,11 @@ HttpStatusReasons::lookup(int status) {
   return it->second;
 }
 
-HttpStatusReasons& HttpStatusReasons::get_reasons() {
-  static HttpStatusReasons *g_reasons = NULL;
+HttpStatus& HttpStatus::get_reasons() {
+  static HttpStatus *g_reasons = NULL;
   if (!g_reasons) {
-    g_reasons = new HttpStatusReasons();
+    g_reasons = new HttpStatus();
   }
   return *g_reasons; 
 }
-
 

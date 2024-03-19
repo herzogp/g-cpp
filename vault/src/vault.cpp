@@ -1,4 +1,5 @@
 #include <anthill/http_server.h>
+#include <anthill/helpers.h>
 #include "vault.h"
 #include "handlers.h"
 

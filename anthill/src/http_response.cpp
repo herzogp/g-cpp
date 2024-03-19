@@ -12,7 +12,7 @@ HttpResponse::HttpResponse(int status, std::string content_type, std::string con
  }
 
 void 
-HttpResponse::send_message(int socket, HttpStatusReasons& all_reasons) {
+HttpResponse::send_message(int socket, HttpStatus& all_reasons) {
   std::stringstream buffer;
   std::string status_text = all_reasons.lookup(this->status);
   buffer << "HTTP/1.1 " << this->status << " " << status_text << "\r\n";
